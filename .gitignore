@@ -1,0 +1,4 @@
+*.o
+*.so
+loaders.cache
+/tmp/
