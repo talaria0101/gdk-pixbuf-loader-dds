@@ -45,6 +45,34 @@ Files installed:
 After updating the loader cache, `ristretto` picks up DDS without restart; for
 Thunar, `thunar -q` or log out/in may be needed.
 
+## Tumbler / Thunar thumbnails
+
+Thunar does not thumbnail images itself; it talks to `tumblerd` (the XFCETumbler
+D-Bus service, `org.freedesktop.thumbnails.Thumbnailer1`). Tumbler picks up DDS
+through two independent paths, both covered by `make install`:
+
+1. **Desktop thumbnailer plugin**: tumbler scans `$XDG_DATA_HOME/thumbnailers`
+   and `$XDG_DATA_DIRS/thumbnailers` for `*.thumbnailer` keyfiles at startup.
+   The installed `/usr/share/thumbnailers/dds.thumbnailer` registers
+   `image/vnd.ms-dds`, `image/x-dds`, and `image/dds` and spawns
+   `gdk-pixbuf-thumbnailer -s %s %i %o` per file.
+2. **Pixbuf thumbnailer plugin**: builds its supported-type list at startup from
+   `gdk_pixbuf_get_formats()`, so once the loader is in the system loaders.cache
+   it can also handle DDS in-process.
+
+After installing, make the running daemon rescan (it caches thumbnailers at
+startup):
+
+```sh
+pkill tumblerd          # D-Bus activation restarts it on the next request
+rm -rf ~/.cache/thumbnails   # only if stale non-DDS thumbnails were cached before
+```
+
+Verified end to end with tumbler 4.20.0: `GetSupported` lists all three DDS mime
+types (once per plugin), and `Queue("file://…dxt1_8x8.dds", "image/vnd.ms-dds",
+"large", "default", 0)` produced a correct `~/.cache/thumbnails/large/<md5>.png`
+(256x256, pixel-identical decode) within one second.
+
 ## How it works
 
 `io-dds.c` implements the `GdkPixbufModule` backend:
